@@ -205,6 +205,55 @@ if not filtered_df.empty:
         "각 칸의 면적은 해당 영화의 총 관객 수(total_audi)에 비례합니다. 이를 통해 장르 전체의 시장 규모와 특정 영화가 장르 내에서 차지하는 흥행 비중을 한눈에 비교할 수 있습니다."
     )
 
+st.divider()
+
+st.subheader("3. 총 관객 수 분포 (히스토그램)")
+
+if not filtered_df.empty:
+    import numpy as np
+
+    # 히스토그램 생성
+    fig_hist = px.histogram(
+        filtered_df,
+        x='total_audi',
+        nbins=20,
+        labels={'total_audi': '총 관객 수 (명)', 'count': '영화 수 (편)'},
+        color_discrete_sequence=['#0284C7']
+    )
+
+    fig_hist.update_traces(
+        hovertemplate='<b>관객 수 구간</b>: %{x}<br><b>영화 수</b>: %{y}편<extra></extra>'
+    )
+
+    fig_hist.update_layout(
+        xaxis_title="총 관객 수 (명)",
+        yaxis_title="영화 수 (편)",
+        margin=dict(t=30, b=30, l=30, r=30),
+        height=450,
+        bargap=0.1
+    )
+
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+    # 가장 관객 수가 많은 영화 탐색
+    max_movie = filtered_df.loc[filtered_df['total_audi'].idxmax()]
+    max_title = max_movie['movieNm']
+    max_audi_val = max_movie['total_audi']
+
+    # 집중 구간 계산 (10개 구간 기준)
+    counts, bin_edges = np.histogram(filtered_df['total_audi'], bins=10)
+    max_bin_idx = counts.argmax()
+    bin_start_man = bin_edges[max_bin_idx] / 10000
+    bin_end_man = bin_edges[max_bin_idx + 1] / 10000
+
+    # 3번 그래프 인사이트 및 주요 정보 문구 출력
+    render_insight_box(
+        f"대부분의 영화({counts[max_bin_idx]}편)가 <b>약 {bin_start_man:,.0f}만 명 ~ {bin_end_man:,.0f}만 명</b> 구간에 몰려 있으며, 상위 흥행작으로 갈수록 개체 수가 급격히 줄어드는 전형적인 오른쪽으로 긴 꼬리 분포를 보입니다.<br>"
+        f"현재 검색 조건에서 가장 관객 수가 많은 영화는 <b>'{max_title}'</b> ({max_audi_val:,}명)입니다."
+    )
+else:
+    st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
+
 with st.expander("📋 필터링된 데이터 상세 보기"):
     st.dataframe(
         filtered_df[['movieNm', 'genre_clean', 'nation', 'openDt', 'first_scrn', 'first_week_audi', 'total_audi', 'days_in_top10']].rename(columns={
