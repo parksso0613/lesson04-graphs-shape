@@ -365,6 +365,36 @@ if not filtered_df.empty:
 else:
     st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
 
+st.divider()
+
+st.subheader("7. 제작 국가 및 장르별 영화 편수 (선버스트 차트)")
+
+if not filtered_df.empty:
+    fig_sunburst = px.sunburst(
+        filtered_df,
+        path=['nation', 'genre_clean'],
+        color='nation',
+        color_discrete_sequence=px.colors.qualitative.Pastel
+    )
+
+    fig_sunburst.update_traces(
+        hovertemplate='<b>%{label}</b><br>영화 수: %{value}편<br>상위 대비 비율: %{percentParent:.1%}<extra></extra>',
+        textinfo='label+value'
+    )
+
+    fig_sunburst.update_layout(
+        margin=dict(t=10, b=10, l=10, r=10),
+        height=500
+    )
+
+    st.plotly_chart(fig_sunburst, use_container_width=True)
+
+    render_insight_box(
+        "제작 국가(nation)에서 장르(genre)로 연결되는 선버스트 차트입니다. 각 영역의 크기는 해당 국가 및 장르에 속한 <b>영화 편수</b>를 나타내며, 안쪽 국가별 층위에서 바깥쪽 장르 층위로 국가별 주요 영화 제작 분포를 한눈에 비교할 수 있습니다."
+    )
+else:
+    st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
+
 with st.expander("📋 필터링된 데이터 상세 보기"):
     st.dataframe(
         filtered_df[['movieNm', 'genre_clean', 'nation', 'openDt', 'first_scrn', 'first_week_audi', 'total_audi', 'days_in_top10']].rename(columns={
