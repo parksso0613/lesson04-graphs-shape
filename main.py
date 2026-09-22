@@ -299,7 +299,7 @@ if not filtered_df.empty:
             x='genre_clean',
             y='total_audi',
             color='genre_clean',
-            points='all',  # 개별 영화 점들을 함께 표시하여 이상치 및 개별 영화에 마우스 오버 시 영화명 확인 가능
+            points='outliers',  # 상자 밖으로 튀는 이상치(Outliers) 점만 표시
             hover_name='movieNm',
             hover_data={'total_audi': ':,', 'genre_clean': False},
             labels={'genre_clean': '장르', 'total_audi': '총 관객수 (명)'}
