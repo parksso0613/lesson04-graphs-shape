@@ -1,5 +1,2 @@
-STREAMING_CHUNK:Listing required library dependencies...
-
-streamlit
 pandas
 plotly
