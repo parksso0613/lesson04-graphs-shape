@@ -254,6 +254,117 @@ if not filtered_df.empty:
 else:
     st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
 
+st.divider()
+
+st.subheader("4. 개봉일 스크린수와 총 관객수의 관계 (산점도)")
+
+if not filtered_df.empty:
+    fig_scatter = px.scatter(
+        filtered_df,
+        x='first_scrn',
+        y='total_audi',
+        color='genre_clean',
+        hover_name='movieNm',
+        hover_data={'first_scrn': ':,', 'total_audi': ':,', 'genre_clean': False},
+        labels={'first_scrn': '개봉일 스크린수 (개)', 'total_audi': '총 관객수 (명)', 'genre_clean': '장르'}
+    )
+    fig_scatter.update_traces(marker=dict(size=9, opacity=0.8))
+    fig_scatter.update_layout(
+        margin=dict(t=30, b=30, l=30, r=30),
+        height=500
+    )
+
+    st.plotly_chart(fig_scatter, use_container_width=True)
+
+    render_insight_box(
+        "개봉일 스크린수가 많을수록 대체로 총 관객수가 높아지는 양의 상관관계를 나타냅니다. 다만, 스크린수가 적음에도 불구하고 입소문을 타고 선전한 작품이나, 초기 스크린 확보 대비 최종 관객수가 다소 아쉬운 사례도 함께 관찰됩니다."
+    )
+else:
+    st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
+
+st.divider()
+
+st.subheader("5. 주요 장르별 총 관객수 분포 (상자 그림)")
+
+if not filtered_df.empty:
+    # 영화 편수가 10편 이상인 장르만 선별
+    genre_counts_filtered = filtered_df['genre_clean'].value_counts()
+    top_genres = genre_counts_filtered[genre_counts_filtered >= 10].index.tolist()
+
+    df_box = filtered_df[filtered_df['genre_clean'].isin(top_genres)]
+
+    if not df_box.empty:
+        fig_box = px.box(
+            df_box,
+            x='genre_clean',
+            y='total_audi',
+            color='genre_clean',
+            points='all',  # 개별 영화 점들을 함께 표시하여 이상치 및 개별 영화에 마우스 오버 시 영화명 확인 가능
+            hover_name='movieNm',
+            hover_data={'total_audi': ':,', 'genre_clean': False},
+            labels={'genre_clean': '장르', 'total_audi': '총 관객수 (명)'}
+        )
+        fig_box.update_layout(
+            showlegend=False,
+            margin=dict(t=30, b=30, l=30, r=30),
+            height=500
+        )
+
+        st.plotly_chart(fig_box, use_container_width=True)
+
+        genres_str = ", ".join([f"'{g}'" for g in top_genres])
+        render_insight_box(
+            f"영화가 10편 이상 수록된 주요 장르({genres_str})의 총 관객수 분포입니다. 상자 범위를 크게 벗어나 위쪽으로 튀어나온 점(Outlier)에 마우스를 올리면 장르 흥행을 견인한 메가 히트 작품의 이름을 확인할 수 있습니다."
+        )
+    else:
+        st.info("영화가 10편 이상인 장르가 현재 선택된 필터 조건에 없습니다.")
+else:
+    st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
+
+st.divider()
+
+st.subheader("6. 개봉일 스크린수, 총 관객수, 첫 주 관객수의 관계 (버블 차트)")
+
+if not filtered_df.empty:
+    df_bubble = filtered_df.copy()
+    # 원 크기 계산용 (0 이하 예외 처리)
+    df_bubble['bubble_size'] = df_bubble['first_week_audi'].apply(lambda x: max(x, 1))
+
+    fig_bubble = px.scatter(
+        df_bubble,
+        x='first_scrn',
+        y='total_audi',
+        size='bubble_size',
+        color='genre_clean',
+        hover_name='movieNm',
+        hover_data={
+            'first_scrn': ':,',
+            'total_audi': ':,',
+            'first_week_audi': ':,',
+            'bubble_size': False,
+            'genre_clean': False
+        },
+        labels={
+            'first_scrn': '개봉일 스크린수 (개)',
+            'total_audi': '총 관객수 (명)',
+            'first_week_audi': '첫 주 관객수 (명)',
+            'genre_clean': '장르'
+        },
+        size_max=40
+    )
+    fig_bubble.update_layout(
+        margin=dict(t=30, b=30, l=30, r=30),
+        height=520
+    )
+
+    st.plotly_chart(fig_bubble, use_container_width=True)
+
+    render_insight_box(
+        "4번 산점도에 <b>'개봉 첫 주 관객수'</b>를 원의 크기로 반영한 버블 차트입니다. 개봉 초기 관객 동원력이 컸던 작품(큰 원)이 최종 관객수까지 이어지는지, 혹은 초기 흥행은 작았으나 장기 집권하며 관객수가 늘어났는지 시각적으로 쉽게 파악할 수 있습니다."
+    )
+else:
+    st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
+
 with st.expander("📋 필터링된 데이터 상세 보기"):
     st.dataframe(
         filtered_df[['movieNm', 'genre_clean', 'nation', 'openDt', 'first_scrn', 'first_week_audi', 'total_audi', 'days_in_top10']].rename(columns={
