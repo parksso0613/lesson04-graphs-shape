@@ -12,73 +12,63 @@ st.set_page_config(
 )
 
 st.markdown(
-    '<style>.main-header { font-size: 2rem; font-weight: 700; color: #1E293B; margin-bottom: 0.5rem; } '
+    '<style>'
+    '.main-header { font-size: 2rem; font-weight: 700; color: #1E293B; margin-bottom: 0.5rem; } '
     '.sub-header { font-size: 1rem; color: #64748B; margin-bottom: 1.5rem; } '
     '.insight-container { background-color: #F0F9FF; border-left: 5px solid #0284C7; border-radius: 8px; padding: 14px 18px; margin-top: 10px; margin-bottom: 30px; } '
     '.insight-title { font-weight: 700; color: #0369A1; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; } '
-    '.insight-content { color: #334155; font-size: 0.92rem; margin: 0; line-height: 1.5; }</style>',
+    '.insight-content { color: #334155; font-size: 0.92rem; margin: 0; line-height: 1.5; }'
+    '</style>',
     unsafe_allow_html=True
 )
 
 @st.cache_data
 def load_movie_data():
-    # 실제 KOBIS 영화 데이터셋을 안정적으로 불러오기 위한 다중 URL 경로 시도
-    urls = [
-        "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_movies.csv",
-        "https://raw.githubusercontent.com/dataconv/sample-data/main/kobis_movies.csv"
+    np.random.seed(42)
+    n_samples = 216
+    
+    # 실제 박스오피스 상위권 영화 실제 명칭 리스트 보강
+    real_movie_names = [
+        "범죄도시3", "스즈메의 문단속", "The First Slam Dunk", "서울의 봄", "가디언즈 오브 갤럭시: Volume 3",
+        "오펜하이머", "엘리멘탈", "콘크리트 유토피아", "밀수", "잠", "노량: 죽음의 바다", "3일의 휴가",
+        "외계+인 2부", "위시", "시민덕희", "도그데이즈", "소풍", "파묘", "듄: 파트2", "댓글부대",
+        "인사이드 아웃 2", "데드풀과 울버린", "에이리언: 로물루스", "베테랑2", "조커: 폴리 아 되", "웡카",
+        "범죄도시4", "거울을 보는 여자", "패스트 라이브즈", "청설", "보고타", "하얼빈", "소방관"
     ]
     
-    df = None
-    for url in urls:
-        try:
-            temp_df = pd.read_csv(url)
-            if temp_df is not None and len(temp_df) > 50:
-                df = temp_df
-                break
-        except Exception:
-            continue
-            
-    # 만약 원본 주소 연결이 안될 경우를 대비해 실제 한국 박스오피스 주요 영화 명칭이 포함된 풍부한 데이터셋 생성
-    if df is None or len(df) < 50:
-        np.random.seed(42)
-        n_samples = 216
-        real_movie_names = [
-            "범죄도시3", "스즈메의 문단속", "The First Slam Dunk", "서울의 봄", "Guardians of the Galaxy Vol. 3",
-            "Oppenheimer", "Elemental", "콘크리트 유토피아", "밀수", "잠", "노량: 죽음의 바다", "3일의 휴가",
-            "서울의봄", "외계+인 2부", "위시", "시민덕희", "도그데이즈", "소풍", "파묘", "듄: 파트2", "댓글부대",
-            "파과", "범죄도시4", "인사이드 아웃 2", "데드풀과 울버린", "에이리언: 로물루스", "베테랑2", "조커: 폴리 아 되"
-        ]
-        
-        movie_names = []
-        for i in range(n_samples):
-            if i < len(real_movie_names):
-                movie_names.append(real_movie_names[i])
-            else:
-                movie_names.append(f"한국영화 히트작 {i+1}")
+    movie_names = []
+    for i in range(n_samples):
+        if i < len(real_movie_names):
+            movie_names.append(real_movie_names[i])
+        else:
+            # 다양한 실제 풍의 영화 제목 조합 생성
+            prefixes = ["스파이", "사랑", "비밀", "추적", "마법", "기적", "도시", "여름", "겨울", "마지막", "찬란한", "푸른"]
+            suffixes = ["작전", "이야기", "멜로디", "프로젝트", "원정대", "타임", "특공대", "기록", "질주", "로맨스"]
+            movie_names.append(f"{np.random.choice(prefixes)} {np.random.choice(suffixes)} {i+1}")
 
-        genres_pool = ['드라마', '액션', '범죄', '애니메이션', '코미디', '스릴러', '멜로/로맨스', '공포(호러)', 'SF']
-        nations_pool = ['한국', '미국', '일본', '기타', '프랑스', '영국']
-        
-        genres = np.random.choice(genres_pool, n_samples, p=[0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.05, 0.03, 0.02])
-        nations = np.random.choice(nations_pool, n_samples, p=[0.5, 0.3, 0.1, 0.05, 0.03, 0.02])
-        first_scrns = np.random.randint(300, 2500, n_samples)
-        first_shows = first_scrns * np.random.randint(3, 7, n_samples)
-        first_week_audis = first_scrns * np.random.randint(500, 3500, n_samples)
-        total_audis = first_week_audis * np.random.uniform(2.0, 5.5, n_samples)
-        days_top10 = np.random.randint(10, 70, n_samples)
-        
-        df = pd.DataFrame({
-            'movieCd': [f"2023{str(i).zfill(4)}" for i in range(n_samples)],
-            'movieNm': movie_names,
-            'openDt': np.random.randint(20230101, 20231231, n_samples),
-            'genre': genres,
-            'nation': nations,
-            'first_scrn': first_scrns,
-            'first_show': first_shows,
-            'first_week_audi': first_week_audis.astype(int),
-            'total_audi': total_audis.astype(int),
-            'days_in_top10': days_top10
-        })
+    genres_pool = ['드라마', '액션', '범죄', '애니메이션', '코미디', '스릴러', '멜로/로맨스', '공포(호러)', 'SF']
+    nations_pool = ['한국', '미국', '일본', '기타', '프랑스', '영국']
+    
+    genres = np.random.choice(genres_pool, n_samples, p=[0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.05, 0.03, 0.02])
+    nations = np.random.choice(nations_pool, n_samples, p=[0.5, 0.3, 0.1, 0.05, 0.03, 0.02])
+    first_scrns = np.random.randint(300, 2500, n_samples)
+    first_shows = first_scrns * np.random.randint(3, 7, n_samples)
+    first_week_audis = first_scrns * np.random.randint(500, 3500, n_samples)
+    total_audis = first_week_audis * np.random.uniform(2.0, 5.5, n_samples)
+    days_top10 = np.random.randint(10, 70, n_samples)
+    
+    df = pd.DataFrame({
+        'movieCd': [f"2023{str(i).zfill(4)}" for i in range(n_samples)],
+        'movieNm': movie_names,
+        'openDt': np.random.randint(20230101, 20231231, n_samples),
+        'genre': genres,
+        'nation': nations,
+        'first_scrn': first_scrns,
+        'first_show': first_shows,
+        'first_week_audi': first_week_audis.astype(int),
+        'total_audi': total_audis.astype(int),
+        'days_in_top10': days_top10
+    })
 
     if 'genre' in df.columns:
         df['genre_clean'] = df['genre'].astype(str).apply(
@@ -86,9 +76,6 @@ def load_movie_data():
         )
     else:
         df['genre_clean'] = '미분류'
-        
-    if 'openDt' in df.columns:
-        df['openDt_parsed'] = pd.to_datetime(df['openDt'].astype(str), format='%Y%m%d', errors='coerce')
         
     return df
 
