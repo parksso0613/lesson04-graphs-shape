@@ -21,7 +21,6 @@ url = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_movi
 try:
 df = pd.read_csv(url)
 except Exception as e:
-# 비상용 백업 데이터 (네트워크 차단 대응용)
 data = {
 'movieCd': ['20230001', '20230002', '20230003', '20230004', '20230005', '20230006', '20230007', '20230008', '20230009', '20230010'],
 'movieNm': ['범죄도시 3', '스즈단의 문단속', '더 퍼스트 슬램덩크', '가디언즈 오브 갤럭시: Volume 3', '밀수', '콘크리트 유토피아', '엘리멘탈', 'Oppenheimer', '서울의 봄', '파묘'],
@@ -36,7 +35,6 @@ data = {
 }
 df = pd.DataFrame(data)
 
-# 장르 전처리: 첫 번째 장르만 추출
 if 'genre' in df.columns:
     df['genre_clean'] = df['genre'].astype(str).apply(
         lambda x: x.split('|')[0].strip() if pd.notna(x) and x != 'nan' and x != '' else '미분류'
@@ -44,7 +42,6 @@ if 'genre' in df.columns:
 else:
     df['genre_clean'] = '미분류'
     
-# 개봉일 날짜형 변환
 if 'openDt' in df.columns:
     df['openDt_parsed'] = pd.to_datetime(df['openDt'].astype(str), format='%Y%m%d', errors='coerce')
     
