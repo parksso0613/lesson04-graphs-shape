@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
+import urllib.request
 
 st.set_page_config(
     page_title="영화 데이터 그래프 도감 2 - 분포와 관계",
@@ -25,16 +26,10 @@ st.markdown(
 @st.cache_data
 def load_movie_data():
     url = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_movies.csv"
-    try:
-        df = pd.read_csv(url)
-    except Exception as e:
-        # Fallback if network blocks raw content
-        import urllib.request
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response:
-            df = pd.read_csv(response)
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req) as response:
+        df = pd.read_csv(response)
 
-    # Clean genre: keep only the first genre if separated by '|'
     if 'genre' in df.columns:
         df['genre_clean'] = df['genre'].astype(str).apply(
             lambda x: x.split('|')[0].strip() if pd.notna(x) and x != 'nan' and x != '' else '미분류'
@@ -80,25 +75,20 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("분석 대상 영화 수", f"{len(filtered_df):,} 편")
 with col2:
-    mean_audi = int(filtered_df['total_audi'].mean()) if not filtered_df.empty and 'total_audi' in filtered_df.columns else 0
+    mean_audi = int(filtered_df['total_audi'].mean()) if not filtered_df.empty and 'total_audi' in df.columns else 0
     st.metric("평균 총 관객 수", f"{mean_audi:,} 명")
 with col3:
-    mean_scrn = int(filtered_df['first_scrn'].mean()) if not filtered_df.empty and 'first_scrn' in filtered_df.columns else 0
+    mean_scrn = int(filtered_df['first_scrn'].mean()) if not filtered_df.empty and 'first_scrn' in df.columns else 0
     st.metric("평균 스크린 수", f"{mean_scrn:,} 개")
 with col4:
-    mean_days = filtered_df['days_in_top10'].mean() if not filtered_df.empty and 'days_in_top10' in filtered_df.columns else 0.0
+    mean_days = filtered_df['days_in_top10'].mean() if not filtered_df.empty and 'days_in_top10' in df.columns else 0.0
     st.metric("평균 TOP 10 유지일수", f"{mean_days:.1f} 일")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 def render_insight_box(text):
     st.markdown(
-        f"""
-        <div class="insight-container">
-            <div class="insight-title">💡 이 그래프로 알 수 있는 것</div>
-            <p class="insight-content">{text}</p>
-        </div>
-        """,
+        f'<div class="insight-container"><div class="insight-title">💡 이 그래프로 알 수 있는 것</div><p class="insight-content">{text}</p></div>',
         unsafe_allow_html=True
     )
 
@@ -354,14 +344,50 @@ if not filtered_df.empty:
 else:
     st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
 
+st.divider()
+
+st.subheader("8. 개봉일 상영횟수가 많은 영화가 개봉 첫 주 관객 수도 많은가")
+
+if not filtered_df.empty:
+    fig_custom_8 = px.scatter(
+        filtered_df,
+        x='first_show',
+        y='first_week_audi',
+        color='genre_clean',
+        hover_name='movieNm',
+        hover_data={'first_show': ':,', 'first_week_audi': ':,', 'genre_clean': False},
+        labels={
+            'first_show': '개봉일 상영횟수 (회)',
+            'first_week_audi': '개봉 첫 주 관객수 (명)',
+            'genre_clean': '장르'
+        }
+    )
+    fig_custom_8.update_traces(marker=dict(size=12, opacity=0.85))
+    fig_custom_8.update_layout(
+        title="개봉일 상영횟수가 많은 영화가 개봉 첫 주 관객 수도 많은가",
+        margin=dict(t=40, b=30, l=30, r=30),
+        height=500
+    )
+
+    st.plotly_chart(fig_custom_8, use_container_width=True)
+
+    render_insight_box(
+        "개봉일 상영횟수가 많을수록 개봉 첫 주 관객 수가 비례하여 증가하는 뚜렷한 양의 관계를 확인할 수 있습니다."
+    )
+else:
+    st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
+
+st.divider()
+
 with st.expander("📋 필터링된 데이터 상세 보기"):
     st.dataframe(
-        filtered_df[['movieNm', 'genre_clean', 'nation', 'openDt', 'first_scrn', 'first_week_audi', 'total_audi', 'days_in_top10']].rename(columns={
+        filtered_df[['movieNm', 'genre_clean', 'nation', 'openDt', 'first_scrn', 'first_show', 'first_week_audi', 'total_audi', 'days_in_top10']].rename(columns={
             'movieNm': '영화명',
             'genre_clean': '주장르',
             'nation': '제작국가',
             'openDt': '개봉일',
             'first_scrn': '개봉일 스크린수',
+            'first_show': '개봉일 상영횟수',
             'first_week_audi': '첫주 관객수',
             'total_audi': '총 관객수',
             'days_in_top10': 'TOP10 유지일수'
