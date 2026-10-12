@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import numpy as np
 
 st.set_page_config(
-    page_title="영화 데이터 그래프 도감 2 - 분포와 관계",
+    page_title="영화 데이터 그래프 도감 1 - 시간 및 분포",
     page_icon="🎬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -22,13 +23,6 @@ st.markdown("""
         font-size: 1rem;
         color: #64748B;
         margin-bottom: 1.5rem;
-    }
-    .metric-card {
-        background-color: #F8FAFC;
-        border: 1px solid #E2E8F0;
-        border-radius: 10px;
-        padding: 15px;
-        text-align: center;
     }
     .insight-container {
         background-color: #F0F9FF;
@@ -59,8 +53,25 @@ st.markdown("""
 @st.cache_data
 def load_movie_data():
     url = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_movies.csv"
-    df = pd.read_csv(url)
-    
+    try:
+        df = pd.read_csv(url)
+    except Exception as e:
+        # 백업용 대체 샘플 데이터 (외부 URL 접속 실패 시 앱이 꺼지지 않도록 방어)
+        data = {
+            'movieCd': ['20200001', '20200002', '20200003', '20200004', '20200005', '20200006'],
+            'movieNm': ['샘플영화 A', '샘플영화 B', '샘플영화 C', '샘플영화 D', '샘플영화 E', '샘플영화 F'],
+            'openDt': ['20230101', '20230105', '20230210', '20230301', '20230405', '20230501'],
+            'genre': ['드라마|멜로', '액션|스릴러', '애니메이션', '코미디', '드라마', '액션'],
+            'nation': ['한국', '미국', '일본', '한국', '프랑스', '미국'],
+            'first_scrn': [1000, 1500, 500, 800, 300, 1200],
+            'first_show': [5000, 7000, 2000, 4000, 1500, 6000],
+            'first_week_audi': [500000, 1200000, 200000, 300000, 100000, 800000],
+            'total_audi': [3500000, 8500000, 1200000, 2100000, 450000, 5500000],
+            'days_in_top10': [25, 40, 15, 20, 10, 30]
+        }
+        df = pd.DataFrame(data)
+        st.warning("⚠️ 원본 데이터 서버 접속에 일시적인 문제가 있어 기본 샘플 데이터를 불러왔습니다.")
+
     # 장르 전처리: 세로막대(|)로 분리된 경우 첫 번째 장르만 사용
     df['genre_clean'] = df['genre'].astype(str).apply(
         lambda x: x.split('|')[0].strip() if pd.notna(x) and x != 'nan' and x != '' else '미분류'
@@ -79,26 +90,22 @@ except Exception as e:
 
 st.sidebar.header("🔍 데이터 필터")
 
-# 국가 선택 필터
 all_nations = ["전체"] + sorted(df['nation'].dropna().unique().tolist())
 selected_nation = st.sidebar.selectbox("제작 국가 선택", all_nations)
 
-# 장르 선택 필터
 all_genres = sorted(df['genre_clean'].unique().tolist())
 selected_genres = st.sidebar.multiselect("장르 선택", all_genres, default=all_genres)
 
-# 관객수 범위 필터
-max_audi = int(df['total_audi'].max())
-min_audi = int(df['total_audi'].min())
+max_audi = int(df['total_audi'].max()) if not df.empty else 1000000
+min_audi = int(df['total_audi'].min()) if not df.empty else 0
 audi_range = st.sidebar.slider(
     "총 관객 수 범위 (명)",
     min_value=min_audi,
-    max_value=max_audi,
-    value=(min_audi, max_audi),
+    max_value=max(max_audi, min_audi + 1),
+    value=(min_audi, max(max_audi, min_audi + 1)),
     step=10000
 )
 
-# 필터링 적용
 filtered_df = df[
     (df['genre_clean'].isin(selected_genres)) &
     (df['total_audi'] >= audi_range[0]) &
@@ -108,10 +115,9 @@ filtered_df = df[
 if selected_nation != "전체":
     filtered_df = filtered_df[filtered_df['nation'] == selected_nation]
 
-st.markdown('<div class="main-header">🎬 영화 데이터 그래프 도감 2 - 분포와 관계</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">박스오피스 상위권 영화 216편의 장르별 분포와 주요 흥행 지표 간의 관계 분석 도감</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">🎬 영화 데이터 그래프 도감 1 - 시간 및 분포</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">KOBIS 1년치 일별 박스오피스 상위권 영화 데이터 시각화 도감</div>', unsafe_allow_html=True)
 
-# 주요 지표 요약
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("분석 대상 영화 수", f"{len(filtered_df):,} 편")
@@ -124,7 +130,6 @@ with col4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# 인사이트 박스 출력 헬퍼 함수
 def render_insight_box(text):
     st.markdown(
         f"""
@@ -165,12 +170,11 @@ if not filtered_df.empty:
     
     st.plotly_chart(fig_donut, use_container_width=True)
     
-    # 1번 그래프 인사이트
     top_genre = genre_counts.iloc[0]['장르'] if len(genre_counts) > 0 else "N/A"
     top_ratio = (genre_counts.iloc[0]['편수'] / genre_counts['편수'].sum() * 100) if len(genre_counts) > 0 else 0
     
     render_insight_box(
-        f"박스오피스 상위 10위권 영화 중 가장 큰 비중을 차지하는 장르는 <b>'{top_genre}'</b>(약 {top_ratio:.1f}%)이며, 특정 몇몇 대중성 높은 주요 장르에 흥행 상위권 진입 편수가 집중되는 경향을 보입니다."
+        f"박스오피스 상위권 영화 중 가장 큰 비중을 차지하는 장르는 <b>'{top_genre}'</b>(약 {top_ratio:.1f}%)이며, 특정 대중성 높은 주요 장르에 편수가 집중되는 경향을 보입니다."
     )
 else:
     st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
@@ -200,19 +204,17 @@ if not filtered_df.empty:
 
     st.plotly_chart(fig_treemap, use_container_width=True)
 
-    # 2번 그래프 인사이트
     render_insight_box(
-        "각 칸의 면적은 해당 영화의 총 관객 수(total_audi)에 비례합니다. 이를 통해 장르 전체의 시장 규모와 특정 영화가 장르 내에서 차지하는 흥행 비중을 한눈에 비교할 수 있습니다."
+        "각 칸의 면적은 해당 영화의 총 관객 수(total_audi)에 비례합니다. 이를 통해 장르 전체의 시장 규모와 특정 영화가 장르 내에서 차지하는 흥행 비중을 비교할 수 있습니다."
     )
+else:
+    st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
 
 st.divider()
 
 st.subheader("3. 총 관객 수 분포 (히스토그램)")
 
 if not filtered_df.empty:
-    import numpy as np
-
-    # 히스토그램 생성
     fig_hist = px.histogram(
         filtered_df,
         x='total_audi',
@@ -235,20 +237,17 @@ if not filtered_df.empty:
 
     st.plotly_chart(fig_hist, use_container_width=True)
 
-    # 가장 관객 수가 많은 영화 탐색
     max_movie = filtered_df.loc[filtered_df['total_audi'].idxmax()]
     max_title = max_movie['movieNm']
     max_audi_val = max_movie['total_audi']
 
-    # 집중 구간 계산 (10개 구간 기준)
-    counts, bin_edges = np.histogram(filtered_df['total_audi'], bins=10)
+    counts, bin_edges = np.histogram(filtered_df['total_audi'], bins=min(10, len(filtered_df)))
     max_bin_idx = counts.argmax()
     bin_start_man = bin_edges[max_bin_idx] / 10000
     bin_end_man = bin_edges[max_bin_idx + 1] / 10000
 
-    # 3번 그래프 인사이트 및 주요 정보 문구 출력
     render_insight_box(
-        f"대부분의 영화({counts[max_bin_idx]}편)가 <b>약 {bin_start_man:,.0f}만 명 ~ {bin_end_man:,.0f}만 명</b> 구간에 몰려 있으며, 상위 흥행작으로 갈수록 개체 수가 급격히 줄어드는 전형적인 오른쪽으로 긴 꼬리 분포를 보입니다.<br>"
+        f"대부분의 영화({counts[max_bin_idx]}편)가 <b>약 {bin_start_man:,.0f}만 명 ~ {bin_end_man:,.0f}만 명</b> 구간에 몰려 있으며, 상위 흥행작으로 갈수록 개체 수가 줄어드는 분포를 보입니다.<br>"
         f"현재 검색 조건에서 가장 관객 수가 많은 영화는 <b>'{max_title}'</b> ({max_audi_val:,}명)입니다."
     )
 else:
@@ -277,7 +276,7 @@ if not filtered_df.empty:
     st.plotly_chart(fig_scatter, use_container_width=True)
 
     render_insight_box(
-        "개봉일 스크린수가 많을수록 대체로 총 관객수가 높아지는 양의 상관관계를 나타냅니다. 다만, 스크린수가 적음에도 불구하고 입소문을 타고 선전한 작품이나, 초기 스크린 확보 대비 최종 관객수가 다소 아쉬운 사례도 함께 관찰됩니다."
+        "개봉일 스크린수가 많을수록 대체로 총 관객수가 높아지는 양의 상관관계를 나타냅니다. 스크린수 대비 입소문으로 선전한 작품도 함께 관찰됩니다."
     )
 else:
     st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
@@ -287,9 +286,8 @@ st.divider()
 st.subheader("5. 주요 장르별 총 관객수 분포 (상자 그림)")
 
 if not filtered_df.empty:
-    # 영화 편수가 10편 이상인 장르만 선별
     genre_counts_filtered = filtered_df['genre_clean'].value_counts()
-    top_genres = genre_counts_filtered[genre_counts_filtered >= 10].index.tolist()
+    top_genres = genre_counts_filtered[genre_counts_filtered >= 2].index.tolist() # 샘플 데이터 호환을 위해 기준 유연화
 
     df_box = filtered_df[filtered_df['genre_clean'].isin(top_genres)]
 
@@ -299,7 +297,7 @@ if not filtered_df.empty:
             x='genre_clean',
             y='total_audi',
             color='genre_clean',
-            points='outliers',  # 상자 밖으로 튀는 이상치(Outliers) 점만 표시
+            points='outliers',
             hover_name='movieNm',
             hover_data={'total_audi': ':,', 'genre_clean': False},
             labels={'genre_clean': '장르', 'total_audi': '총 관객수 (명)'}
@@ -312,12 +310,11 @@ if not filtered_df.empty:
 
         st.plotly_chart(fig_box, use_container_width=True)
 
-        genres_str = ", ".join([f"'{g}'" for g in top_genres])
         render_insight_box(
-            f"영화가 10편 이상 수록된 주요 장르({genres_str})의 총 관객수 분포입니다. 상자 범위를 크게 벗어나 위쪽으로 튀어나온 점(Outlier)에 마우스를 올리면 장르 흥행을 견인한 메가 히트 작품의 이름을 확인할 수 있습니다."
+            "주요 장르별 총 관객수 분포입니다. 상자 범위를 벗어나 위쪽으로 튀어나온 점(Outlier)에 마우스를 올리면 흥행을 견인한 작품의 이름을 확인할 수 있습니다."
         )
     else:
-        st.info("영화가 10편 이상인 장르가 현재 선택된 필터 조건에 없습니다.")
+        st.info("조건에 부합하는 장르 데이터가 부족합니다.")
 else:
     st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
 
@@ -327,7 +324,6 @@ st.subheader("6. 개봉일 스크린수, 총 관객수, 첫 주 관객수의 관
 
 if not filtered_df.empty:
     df_bubble = filtered_df.copy()
-    # 원 크기 계산용 (0 이하 예외 처리)
     df_bubble['bubble_size'] = df_bubble['first_week_audi'].apply(lambda x: max(x, 1))
 
     fig_bubble = px.scatter(
@@ -360,7 +356,7 @@ if not filtered_df.empty:
     st.plotly_chart(fig_bubble, use_container_width=True)
 
     render_insight_box(
-        "4번 산점도에 <b>'개봉 첫 주 관객수'</b>를 원의 크기로 반영한 버블 차트입니다. 개봉 초기 관객 동원력이 컸던 작품(큰 원)이 최종 관객수까지 이어지는지, 혹은 초기 흥행은 작았으나 장기 집권하며 관객수가 늘어났는지 시각적으로 쉽게 파악할 수 있습니다."
+        "개봉 초기 관객 동원력('첫 주 관객수')을 원의 크기로 반영한 버블 차트입니다. 초기 흥행이 최종 관객수까지 이어지는지 시각적으로 파악할 수 있습니다."
     )
 else:
     st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
@@ -390,7 +386,7 @@ if not filtered_df.empty:
     st.plotly_chart(fig_sunburst, use_container_width=True)
 
     render_insight_box(
-        "제작 국가(nation)에서 장르(genre)로 연결되는 선버스트 차트입니다. 각 영역의 크기는 해당 국가 및 장르에 속한 <b>영화 편수</b>를 나타내며, 안쪽 국가별 층위에서 바깥쪽 장르 층위로 국가별 주요 영화 제작 분포를 한눈에 비교할 수 있습니다."
+        "제작 국가(nation)에서 장르(genre)로 연결되는 선버스트 차트입니다. 각 영역의 크기는 해당 국가 및 장르에 속한 영화 편수를 나타냅니다."
     )
 else:
     st.warning("선택한 필터 조건에 해당하는 데이터가 없습니다.")
