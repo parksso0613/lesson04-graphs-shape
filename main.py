@@ -52,43 +52,51 @@ st.markdown("""
 
 @st.cache_data
 def load_movie_data():
-    # 외부 서버 연결 오류를 완전히 차단하기 위해 안정적인 내장 샘플 데이터 제공
-    data = {
-        'movieCd': ['20230001', '20230002', '20230003', '20230004', '20230005', '20230006', '20230007', '20230008', '20230009', '20230010', '20230011', '20230012'],
-        'movieNm': ['범죄도시 3', '스즈단의 문단속', '더 퍼스트 슬램덩크', '가디언즈 오브 갤럭시: Volume 3', '밀수', '콘크리트 유토피아', '엘리멘탈', 'Oppenheimer', '서울의 봄', '파묘', '범죄도시 4', '인사이드 아웃 2'],
-        'openDt': ['20230531', '20230308', '20230104', '20230503', '20230726', '20230809', '20230614', '20230815', '20231122', '20240222', '20240424', '20240612'],
-        'genre': ['범죄|액션', '애니메이션|판타지', '애니메이션|드라마', '액션|SF', '범죄|드라마', '드라마|스릴러', '애니메이션|코미디', '전기|드라마', '드라마|스릴러', '미스터리|공포', '범죄|액션', '애니메이션|코미디'],
-        'nation': ['한국', '일본', '일본', '미국', '한국', '한국', '미국', '미국', '한국', '한국', '한국', '미국'],
-        'first_scrn': [2444, 1374, 984, 1533, 1603, 1276, 1147, 850, 1543, 2242, 2901, 2012],
-        'first_show': [12130, 6100, 3420, 7150, 7800, 5900, 5100, 3600, 7200, 10500, 14200, 9500],
-        'first_week_audi': [4510000, 1120000, 850000, 1620000, 2230000, 1540000, 1310000, 1530000, 1890000, 3300000, 4800000, 3100000],
-        'total_audi': [10680000, 5570000, 4870000, 4210000, 5140000, 3840000, 7240000, 3220000, 13120000, 11910000, 11500000, 8780000],
-        'days_in_top10': [35, 42, 60, 28, 25, 22, 50, 20, 45, 40, 38, 30]
-    }
-    df = pd.DataFrame(data)
+    url = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_movies.csv"
+    try:
+        df = pd.read_csv(url)
+    except Exception as e:
+        # 비상용 백업 데이터 (네트워크 차단 대응용)
+        data = {
+            'movieCd': ['20230001', '20230002', '20230003', '20230004', '20230005', '20230006', '20230007', '20230008', '20230009', '20230010'],
+            'movieNm': ['범죄도시 3', '스즈단의 문단속', '더 퍼스트 슬램덩크', '가디언즈 오브 갤럭시: Volume 3', '밀수', '콘크리트 유토피아', '엘리멘탈', 'Oppenheimer', '서울의 봄', '파묘'],
+            'openDt': ['20230531', '20230308', '20230104', '20230503', '20230726', '20230809', '20230614', '20230815', '20231122', '20240222'],
+            'genre': ['범죄|액션', '애니메이션|판타지', '애니메이션|드라마', '액션|SF', '범죄|드라마', '드라마|스릴러', '애니메이션|코미디', '전기|드라마', '드라마|스릴러', '미스터리|공포'],
+            'nation': ['한국', '일본', '일본', '미국', '한국', '한국', '미국', '미국', '한국', '한국'],
+            'first_scrn': [2444, 1374, 984, 1533, 1603, 1276, 1147, 850, 1543, 2242],
+            'first_show': [12130, 6100, 3420, 7150, 7800, 5900, 5100, 3600, 7200, 10500],
+            'first_week_audi': [4510000, 1120000, 850000, 1620000, 2230000, 1540000, 1310000, 1530000, 1890000, 3300000],
+            'total_audi': [10680000, 5570000, 4870000, 4210000, 5140000, 3840000, 7240000, 3220000, 13120000, 11910000],
+            'days_in_top10': [35, 42, 60, 28, 25, 22, 50, 20, 45, 40]
+        }
+        df = pd.DataFrame(data)
 
     # 장르 전처리: 첫 번째 장르만 추출
-    df['genre_clean'] = df['genre'].astype(str).apply(
-        lambda x: x.split('|')[0].strip() if pd.notna(x) and x != 'nan' and x != '' else '미분류'
-    )
-    
+    if 'genre' in df.columns:
+        df['genre_clean'] = df['genre'].astype(str).apply(
+            lambda x: x.split('|')[0].strip() if pd.notna(x) and x != 'nan' and x != '' else '미분류'
+        )
+    else:
+        df['genre_clean'] = '미분류'
+        
     # 개봉일 날짜형 변환
-    df['openDt_parsed'] = pd.to_datetime(df['openDt'].astype(str), format='%Y%m%d', errors='coerce')
-    
+    if 'openDt' in df.columns:
+        df['openDt_parsed'] = pd.to_datetime(df['openDt'].astype(str), format='%Y%m%d', errors='coerce')
+        
     return df
 
 df = load_movie_data()
 
 st.sidebar.header("🔍 데이터 필터")
 
-all_nations = ["전체"] + sorted(df['nation'].dropna().unique().tolist())
+all_nations = ["전체"] + sorted(df['nation'].dropna().unique().tolist()) if 'nation' in df.columns else ["전체"]
 selected_nation = st.sidebar.selectbox("제작 국가 선택", all_nations)
 
-all_genres = sorted(df['genre_clean'].unique().tolist())
+all_genres = sorted(df['genre_clean'].unique().tolist()) if 'genre_clean' in df.columns else []
 selected_genres = st.sidebar.multiselect("장르 선택", all_genres, default=all_genres)
 
-max_audi = int(df['total_audi'].max()) if not df.empty else 1000000
-min_audi = int(df['total_audi'].min()) if not df.empty else 0
+max_audi = int(df['total_audi'].max()) if not df.empty and 'total_audi' in df.columns else 1000000
+min_audi = int(df['total_audi'].min()) if not df.empty and 'total_audi' in df.columns else 0
 audi_range = st.sidebar.slider(
     "총 관객 수 범위 (명)",
     min_value=min_audi,
@@ -97,14 +105,14 @@ audi_range = st.sidebar.slider(
     step=100000
 )
 
-filtered_df = df[
-    (df['genre_clean'].isin(selected_genres)) &
-    (df['total_audi'] >= audi_range[0]) &
-    (df['total_audi'] <= audi_range[1])
-]
-
-if selected_nation != "전체":
-    filtered_df = filtered_df[filtered_df['nation'] == selected_nation]
+filtered_df = df.copy()
+if not filtered_df.empty:
+    if 'genre_clean' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['genre_clean'].isin(selected_genres)]
+    if 'total_audi' in filtered_df.columns:
+        filtered_df = filtered_df[(filtered_df['total_audi'] >= audi_range[0]) & (filtered_df['total_audi'] <= audi_range[1])]
+    if selected_nation != "전체" and 'nation' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['nation'] == selected_nation]
 
 st.markdown('<div class="main-header">🎬 영화 데이터 그래프 도감 2 - 분포와 관계</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">박스오피스 상위권 영화 데이터 시각화 도감</div>', unsafe_allow_html=True)
@@ -113,11 +121,14 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("분석 대상 영화 수", f"{len(filtered_df):,} 편")
 with col2:
-    st.metric("평균 총 관객 수", f"{int(filtered_df['total_audi'].mean() if not filtered_df.empty else 0):,} 명")
+    mean_audi = int(filtered_df['total_audi'].mean()) if not filtered_df.empty and 'total_audi' in filtered_df.columns else 0
+    st.metric("평균 총 관객 수", f"{mean_audi:,} 명")
 with col3:
-    st.metric("평균 스크린 수", f"{int(filtered_df['first_scrn'].mean() if not filtered_df.empty else 0):,} 개")
+    mean_scrn = int(filtered_df['first_scrn'].mean()) if not filtered_df.empty and 'first_scrn' in filtered_df.columns else 0
+    st.metric("평균 스크린 수", f"{mean_scrn:,} 개")
 with col4:
-    st.metric("평균 TOP 10 유지일수", f"{filtered_df['days_in_top10'].mean():.1f} 일" if not filtered_df.empty else "0 일")
+    mean_days = filtered_df['days_in_top10'].mean() if not filtered_df.empty and 'days_in_top10' in filtered_df.columns else 0.0
+    st.metric("평균 TOP 10 유지일수", f"{mean_days:.1f} 일")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -274,11 +285,13 @@ else:
 
 st.divider()
 
-st.subheader("5. 장르별 총 관객수 분포 (상자 그림)")
+st.subheader("5. 영화 10편 이상 장르의 총 관객수 분포 (상자 그림)")
 
 if not filtered_df.empty:
     genre_counts_filtered = filtered_df['genre_clean'].value_counts()
-    top_genres = genre_counts_filtered[genre_counts_filtered >= 1].index.tolist()
+    top_genres = genre_counts_filtered[genre_counts_filtered >= 10].index.tolist()
+    if not top_genres:
+        top_genres = genre_counts_filtered.index.tolist()
 
     df_box = filtered_df[filtered_df['genre_clean'].isin(top_genres)]
 
@@ -302,7 +315,7 @@ if not filtered_df.empty:
         st.plotly_chart(fig_box, use_container_width=True)
 
         render_insight_box(
-            "주요 장르별 총 관객수 분포입니다. 상자 밖으로 튀어나온 점(Outlier)에 마우스를 올리면 대박 흥행작의 이름을 확인할 수 있습니다."
+            "10편 이상 제작된 주요 장르별 총 관객수 분포입니다. 상자 밖으로 튀어나온 점(Outlier)에 마우스를 올리면 대박 흥행작의 이름을 확인할 수 있습니다."
         )
     else:
         st.info("조건에 부합하는 장르 데이터가 부족합니다.")
